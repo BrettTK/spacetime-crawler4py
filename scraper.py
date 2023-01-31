@@ -1,6 +1,7 @@
 import re
-from urllib.parse import urlparse
-#test
+from urllib.parse import urlparse, urlsplit
+
+#curtis test git push
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
@@ -22,8 +23,19 @@ def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
+    
+    #check if the URL 
+    #a URL is allowed to be crawled if its robot.txt file 
     try:
         parsed = urlparse(url)
+        
+        #attempting to check the domain of the parsed url WITHOUT the subdomain included
+        domain = urlsplit(url).netloc.split(".")[-3:]
+        domain = ".".join(domain)
+        
+        #return false for URLS that are not of the following domains
+        if domain not in set(["ics.uci.edu", "cs.uci.edu", "informatics.uci.edu", "stats.uci.edu"]):
+            return False
         if parsed.scheme not in set(["http", "https"]):
             return False
         return not re.match(
