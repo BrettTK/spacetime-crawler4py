@@ -5,6 +5,7 @@ from utils.download import download
 from utils import get_logger
 import scraper
 import time
+from collections import defaultdict
 
 
 class Worker(Thread):
@@ -19,7 +20,7 @@ class Worker(Thread):
         
     def run(self):
         while True:
-            wordFrequency = {}
+            wordFrequency = defaultdict(int)
             tbd_url = self.frontier.get_tbd_url()
             if not tbd_url:
                 self.logger.info("Frontier is empty. Stopping Crawler.")
