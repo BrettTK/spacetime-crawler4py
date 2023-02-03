@@ -7,8 +7,8 @@ from collections import defaultdict
 #curtis test git push
 #ryan testing git push
 
-def scraper(url, resp):
-    links = extract_next_links(url, resp)
+def scraper(url, resp, wordFrequency):
+    links = extract_next_links(url, resp, wordFrequency)
     return [link for link in links if is_valid(link)]
 
 def extract_next_links(url, res, freqDict):
@@ -36,15 +36,26 @@ def is_valid(url):
     #a URL is allowed to be crawled if its robot.txt file 
     try:
         parsed = urlparse(url)
+        print("new url")
+        print(parsed)
         
+        if (not parsed.netloc):
+            print("False")
+            return False
+
         #attempting to check the domain of the parsed url WITHOUT the subdomain included
         domain = urlsplit(url).netloc.split(".")[-3:]
         domain = ".".join(domain)
         
+        print("domain")
+        print(domain)
+
         #return false for URLS that are not of the following domains
         if domain not in set(["ics.uci.edu", "cs.uci.edu", "informatics.uci.edu", "stats.uci.edu"]):
+            print("False")
             return False
         if parsed.scheme not in set(["http", "https"]):
+            print("False")
             return False
         return not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
