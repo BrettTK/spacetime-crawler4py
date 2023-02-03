@@ -11,7 +11,7 @@ def scraper(url, resp):
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
 
-def extract_next_links(url, resp):
+def extract_next_links(url, res, freqDict):
     # Implementation required.
     # url: the URL that was used to get the page
     # resp.url: the actual url of the page
@@ -21,7 +21,11 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-    return list()
+
+    listToReturn = []
+    if res.status in (200,201,202):
+        listToReturn = tokenize(res.raw_response.content, freqDict)
+    return listToReturn
 
 def is_valid(url):
     # Decide whether to crawl this url or not. 
