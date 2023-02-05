@@ -2,7 +2,7 @@ import re
 from urllib.parse import urlparse, urlsplit
 from bs4 import BeautifulSoup
 from collections import defaultdict
-
+import hashlib
 
 #curtis test git push
 #ryan testing git push
@@ -25,6 +25,8 @@ def extract_next_links(url, res, freqDict):
     listToReturn = []
     if res.status in (200,201,202):
         listToReturn = tokenize(res.raw_response.content, freqDict)
+        wordCount = computeWordFrequencies(listToReturn)
+
     return listToReturn
 
 def is_valid(url):
@@ -33,14 +35,13 @@ def is_valid(url):
     # There are already some conditions that return False.
     
     #check if the URL 
-    #a URL is allowed to be crawled if its robot.txt file 
+    #a URL is allowed to be crawled if its robot.txt file +
     try:
         parsed = urlparse(url)
         print("new url")
         print(parsed)
         
         if (not parsed.netloc):
-            print("False")
             return False
 
         #attempting to check the domain of the parsed url WITHOUT the subdomain included
@@ -57,7 +58,8 @@ def is_valid(url):
         if parsed.scheme not in set(["http", "https"]):
             print("False")
             return False
-        return not re.match(
+        
+        flag = not re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
@@ -66,6 +68,7 @@ def is_valid(url):
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
+        return flag
 
     except TypeError:
         print ("TypeError for ", parsed)
@@ -125,9 +128,13 @@ def tokenize(rrc, freqDict): #rrc stands for response.raw_response.content
     # Split text into words while filtering out words that are considered English stop words
     words = [word for word in text.split() if word not in stopWords]
     
+    tempDict = defaultdict(int)
     # Count word occurrences
     for word in words:
         freqDict[word] += 1
+        tempDict[word] += 1
+    
+
     
     #REMEMBER: do something with the frequencies dict to count the overall frequencies from ALL the webpages
     
@@ -135,4 +142,43 @@ def tokenize(rrc, freqDict): #rrc stands for response.raw_response.content
     #temporary return values (not sure what to return)
     #return URLS, frequencies
     return URLS
+
+def hashFunction(): 
+    #should return a hash, I can try and implement this into the code later, i'm getting finalhash = 33608744322, testfinal = 1099471083, 
+    #pretty sure testfinal is wrong, donm't know why though THEY SHOULD BOTH BE RETURNING THE SAME THING AGHHHHHH
+
+    number = 100000000
+    stringtest = "This is an example sentence."
+    stringtest2 = "why are animals so fucking stubborn sometimes?"
+
+    tokenlist = re.findall(r"[\x30-\x39\x41-\x5A\x61-\x7A]+", stringtest)
+    count_dict = defaultdict(int)
+    hash_dict = {}
+
+    num_bits = 32
+    hash_list = [0] * num_bits
+
+    for i in tokenlist:
+        count_dict[i] += 1
     
+    for i in tokenlist:
+        number = (int.from_bytes(hashlib.sha256(i.encode()).digest()[:4], 'little')) # 32-bit int
+        
+        bits = [(number >> bit) & 1 for bit in range(num_bits - 1, -1, -1)]
+        print(f'i: {i:<10} bits: {bits} num: {number}')
+        for index, bit in enumerate(bits):
+            hash_list[index] += count_dict[i] if bit == 1 else (-1 * count_dict[i])
+    
+    hash_list = [1, 0, 1, 0, 1, 1, 0, 0]
+
+    finalhash = 0
+    for b in hash_list:
+        finalhash = (finalhash << 1) + b
+    print(finalhash)
+
+    testfinal = sum(c << index for index, c in enumerate(hash_list))
+
+    print(testfinal)
+
+if __name__ == "__main__": #IF YOU WANT TO SEE THE RESULTS OF HASH FUNCTION JUST TYPE "python scraper.py" INTO TERMINAL IT SHOULD WORK
+    hashFunction()
