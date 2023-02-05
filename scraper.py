@@ -144,16 +144,14 @@ def tokenize(rrc, freqDict): #rrc stands for response.raw_response.content
     return URLS
 
 def hashFunction(): 
-    #should return a hash, I can try and implement this into the code later, i'm getting finalhash = 33608744322, testfinal = 1099471083, 
+    #should return a hash, I can try and implement this into the code later, i'm getting finalhash = 3646333053, testfinal = -9529110459, 
     #pretty sure testfinal is wrong, donm't know why though THEY SHOULD BOTH BE RETURNING THE SAME THING AGHHHHHH
 
-    number = 100000000
     stringtest = "This is an example sentence."
     stringtest2 = "why are animals so fucking stubborn sometimes?"
 
     tokenlist = re.findall(r"[\x30-\x39\x41-\x5A\x61-\x7A]+", stringtest)
     count_dict = defaultdict(int)
-    hash_dict = {}
 
     num_bits = 32
     hash_list = [0] * num_bits
@@ -169,14 +167,13 @@ def hashFunction():
         for index, bit in enumerate(bits):
             hash_list[index] += count_dict[i] if bit == 1 else (-1 * count_dict[i])
     
-    hash_list = [1, 0, 1, 0, 1, 1, 0, 0]
 
     finalhash = 0
     for b in hash_list:
         finalhash = (finalhash << 1) + b
     print(finalhash)
 
-    testfinal = sum(c << index for index, c in enumerate(hash_list))
+    testfinal = sum([b<<i for i, b in enumerate(hash_list)])
 
     print(testfinal)
 
