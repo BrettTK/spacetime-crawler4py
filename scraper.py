@@ -11,7 +11,7 @@ def scraper(url, resp, wordFrequency):
     links = extract_next_links(url, resp, wordFrequency)
     return [link for link in links if is_valid(link)]
 
-def extract_next_links(url, res, freqDict):
+def extract_next_links(url, resp, freqDict):
     # Implementation required.
     # url: the URL that was used to get the page
     # resp.url: the actual url of the page
@@ -21,12 +21,75 @@ def extract_next_links(url, res, freqDict):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
+    
+    listToReturn = list()
+    
+    #fingerprints = set() commented these data structures out because didn't use them yet
+    #checksums = set()
+    
+    #duplicates = set()
 
-    listToReturn = []
-    if res.status in (200,201,202):
-        listToReturn = tokenize(res.raw_response.content, freqDict)
-        wordCount = computeWordFrequencies(listToReturn)
+    
+    
+    # ===NOT SURE IF THIS CHUNK OPTIMIZES OR IS NECESSARY===
+    domain = urlsplit(url).netloc.split(".")[-3:]
+    domain = ".".join(domain)
+        
+    # return false for URLS that are not of the following domains
+    if domain not in set(["ics.uci.edu", "cs.uci.edu", "informatics.uci.edu", "stats.uci.edu"]):
+        return listToReturn
+    # ===DOMAIN CHECK ENDS====
+    
+    elif resp.status != 200 or resp.raw_response == None:
+        return listToReturn
+    elif resp.raw_response: 
+        if (resp.raw_response.content and resp.raw_response.url):
+            robots_url = f"{url.rstrip('/')}/robots.txt"
+            #figure out if robot.txt tells us if webpage is crawlable, change flag to true if it is 
 
+              # ===CHECK IF URL GIVEN IS CRAWLABLE HERE===
+            try: 
+                roboParser = rbp.RoboFileParser()
+                roboParser.set_url(robots_url)
+                roboParser.read() # makes a request to to the url and is the reason we have try/except
+                
+            except urllib.error.HTTPError as e: #if read() causes an error -> do something if 404 and do something if not 404
+                if e.code == 404: # means it is crawlable since a robots.txt file doesn't exist
+                    pass
+                else:
+                    return list() # returning an empty list if any other error other than 404 was raised
+             
+            if roboParser.can_fetch('*', url) == False: # can fetch doesn't raise any exceptions
+                return listToReturn # since can fetch == isCrawlable(), we return an empty list when can_fetch() is false
+            
+            # ===CRAWLABLE CHECK ENDS HERE===
+            
+            # if crawlable -> then we find duplicates (near and exact, add them to duplicates set and visited list
+            #if yes, make sure to remove all the disallowed urls from listToReturn and finalize it 
+            
+            
+            htmlContent = BeautifulSoup(response.raw_response.content, 'lxml') 
+            tokenizeURLS = [url.get('href') for url in htmlContent.find_all('a')]
+            
+            # ===WRITE CODE TO REMOVE ALL DUPLICATES HERE -> waiting on curtis fingerprints===
+            
+            # ===END DUPLICATE REMOVAL===
+            
+            # ===WRITE CODE TO REMOVE ALL DISALLOWED PATHS FROM ROBOTS.TXT===
+            disallowed_paths = set(rp.get_paths("*")) # assuming that this line works for now
+            
+            # removes all links with disallowed paths in them
+            for url in tokenizeURLS:
+                if any(path in url for path in disallowed_paths):
+                    tokenizeURLS.remove(url) 
+                else:
+                    pass
+            
+            listToReturn = tokenizeURLS
+            # ===REMOVE DISALLOWED ENDS HERE
+    else:
+        print(resp.error)
+        
     return listToReturn
 
 def is_valid(url):
