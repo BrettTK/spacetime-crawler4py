@@ -9,11 +9,12 @@ import hashlib
 #curtis test git push
 #ryan testing git push
 
-def scraper(url, resp, wordFrequency):
-    links = extract_next_links(url, resp, wordFrequency)
-    return [link for link in links if is_valid(link)]
+def scraper(url, resp, wordFrequency, visitedHashes):
+    links = extract_next_links(url, resp, wordFrequency, visitedHashes)
+    confirmed_links = [link for link in links if is_valid(link, visitedHashes)]
+    
 
-def extract_next_links(url, resp, freqDict):
+def extract_next_links(url, resp, freqDict, visitedHashes):
     # Implementation required.
     # url: the URL that was used to get the page
     # resp.url: the actual url of the page
@@ -31,11 +32,11 @@ def extract_next_links(url, resp, freqDict):
 
     listToReturn = []
     if resp.status in (200,201,202):
-        listToReturn = tokenize(resp.raw_response.content, freqDict)
+        listToReturn = tokenize(resp, freqDict, visitedHashes)
     return listToReturn
 
 
-def is_valid(url):
+def is_valid(url, visitedHashes):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
@@ -43,6 +44,8 @@ def is_valid(url):
     #check if the URL 
     #a URL is allowed to be crawled if its robot.txt file +
     try:
+        if url in visitedHashes:
+            return False
         parsed = urlparse(url)
         
         if (not parsed.netloc):
@@ -51,12 +54,12 @@ def is_valid(url):
         #attempting to check the domain of the parsed url WITHOUT the subdomain included
         domain = urlsplit(url).netloc.split(".")[-3:]
         domain = ".".join(domain)
-        print(f'url: {url}')
+        print(f'domain: {domain}')
 
         #return false for URLS that are not of the following domains
-        if domain not in set(["ics.uci.edu", "cs.uci.edu", "informatics.uci.edu", "stat.uci.edu"]):
+        if domain not in {"ics.uci.edu", "cs.uci.edu", "informatics.uci.edu", "stat.uci.edu"}:
             return False
-        if parsed.scheme not in set(["http", "https"]):
+        if parsed.scheme not in {"http", "https"}:
             return False
         
         flag = not re.match(
@@ -102,7 +105,7 @@ QUESTION: what to do with the dictionary of frequencies of each word
 
 return a list of the URLS 
 """
-def tokenize(resp, freqDict): # takes in a response object which is used to generate a BeautifulSoup() object and then also accessed for resp.url to generate URLs list
+def tokenize(resp, freqDict, visitedHashes): # takes in a response object which is used to generate a BeautifulSoup() object and then also accessed for resp.url to generate URLs list
     
     stopWords = {
     "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", "as", "at",
@@ -126,27 +129,21 @@ def tokenize(resp, freqDict): # takes in a response object which is used to gene
     
     #instantiate a BeautifulSoup object to allow manipulation and extraction of data from the webpage
     htmlContent = BeautifulSoup(resp.raw_response.content, 'lxml') #lxml is the most efficient and versatile parser and more effective than the standard 
-    #URLS = [url.get('href') for url in htmlContent.find_all('a')]
+    URLS = [url.get('href') for url in htmlContent.find_all('a')] 
 
     # line below should be filtering out all links that start with a "#" because they are already part of the webpage while transforming relative -> absolute URLs
 
-    URLS = {urljoin(resp.url, link.attrs['href']) for link in htmlContent.find_all('a') if 'href' in link.attrs and link.attrs['href'].startswith('/') and urljoin(resp.url, link.attrs['href']).startswith('http')}
+    # URLS = {urljoin(resp.url, link.attrs['href']) for link in htmlContent.find_all('a') if 'href' in link.attrs and link.attrs['href'].startswith('/') and urljoin(resp.url, link.attrs['href']).startswith('http')}
 
     # ===TOKENIZING STARTS HERE===
     
     # Filter punctuation using regex with the exception of ' and - 
-    text = re.sub(r'[^\w\'-]+', ' ', htmlContent.get_text())
-    
-    # Split words joined by "-"
-    text = text.replace("-", " ")
-    
-    # Lowercase all words so we can accurately count all occurences of a word
-    text = text.lower()
-    
+    tokens = re.findall(r"[\x30-\x39\x41-\x5A\x61-\x7A]+", htmlContent.get_text())
+
     # Split text into words while filtering out words that are considered English stop words
-    words = [word for word in text.split() if word not in stopWords]
-    
-    tempDict = defaultdict(int)
+    words = [word for word in tokens if word not in stopWords]
+
+    countDict = defaultdict(int)
     # Count word occurrences
     for word in words:
         freqDict[word] += 1
@@ -154,6 +151,7 @@ def tokenize(resp, freqDict): # takes in a response object which is used to gene
     
     hashOfURL = hashFunction(countDict)
     
+    visitedHashes.add(hashOfURL)
     #REMEMBER: do something with the frequencies dict to count the overall frequencies from ALL the webpages
     
     #returns both the list of URLS and dictionary of frequencies as a tuple for later access
@@ -185,4 +183,5 @@ def hashFunction(count_dict):
 
     for b in hash_list:
         finalhash = (finalhash << 1) + b
+    print(f'finalhash: {finalhash}')
     return finalhash
