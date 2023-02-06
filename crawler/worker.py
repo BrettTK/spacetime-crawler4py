@@ -34,7 +34,7 @@ class Worker(Thread):
                 f"Downloaded {tbd_url}, status <{resp.status}>, "
                 f"using cache {self.config.cache_server}.")
             if tbd_url not in self.visitedSites:
-                scraped_urls = scraper.scraper(tbd_url, resp, self.freqDict, self.visitedHashes, self.visitedSites)
+                scraped_urls = scraper.scraper(tbd_url, resp, self.freqDict, self.visitedHashes)
                 for scraped_url in scraped_urls:
                     self.frontier.add_url(scraped_url)
                     self.visitedSites.add(scraped_url)
