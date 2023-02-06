@@ -32,5 +32,8 @@ class Worker(Thread):
             scraped_urls = scraper.scraper(tbd_url, resp, self.freqDict)
             for scraped_url in scraped_urls:
                 self.frontier.add_url(scraped_url)
+                f = open(f"{scraped_url[0:1].upper()}list.txt", "a")
+                f.write(f"{scraped_url}\n")
+                f.close()
             self.frontier.mark_url_complete(tbd_url)
             time.sleep(self.config.time_delay)
