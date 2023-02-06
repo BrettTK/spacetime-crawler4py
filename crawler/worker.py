@@ -37,3 +37,5 @@ class Worker(Thread):
                 f.close()
             self.frontier.mark_url_complete(tbd_url)
             time.sleep(self.config.time_delay)
+        f2 = open("link count.txt", "w")
+        f2.write(len(scraped_urls))
