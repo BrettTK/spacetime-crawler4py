@@ -12,6 +12,7 @@ class Frontier(object):
         self.logger = get_logger("FRONTIER")
         self.config = config
         self.to_be_downloaded = list()
+        self.numUnique = 0
         
         if not os.path.exists(self.config.save_file) and not restart:
             # Save file does not exist, but request to load save.
@@ -57,6 +58,8 @@ class Frontier(object):
         url = normalize(url)
         urlhash = get_urlhash(url)
         if urlhash not in self.save:
+            print(f'added website: {url}')
+            self.numUnique += 1
             self.save[urlhash] = (url, False)
             self.save.sync()
             self.to_be_downloaded.append(url)
