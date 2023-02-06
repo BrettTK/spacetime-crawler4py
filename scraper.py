@@ -1,5 +1,5 @@
 import re
-from urllib.parse import urlparse, urlsplit, urldefrag
+from urllib.parse import urlparse, urlsplit, urldefrag, urljoin 
 import urllib.error
 import urllib.robotparser as rbp
 from bs4 import BeautifulSoup
@@ -147,10 +147,7 @@ QUESTION: what to do with the dictionary of frequencies of each word
 
 return a list of the URLS 
 """
-def tokenize(rrc, freqDict): #rrc stands for response.raw_response.content
-    
-#UNCERTAIN: should i generate individual dictionaries for every tokenize() call and not have freqDict as a parameter
-#OR update the dictionary of frequencies in the worker class
+def tokenize(resp, freqDict): # takes in a response object which is used to generate a BeautifulSoup() object and then also accessed for resp.url to generate URLs list
     
     stopWords = {
     "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", "as", "at",
@@ -173,36 +170,37 @@ def tokenize(rrc, freqDict): #rrc stands for response.raw_response.content
     #frequencies = defaultdict(int)
     
     #instantiate a BeautifulSoup object to allow manipulation and extraction of data from the webpage
-    htmlContent = BeautifulSoup(rrc, 'lxml') #lxml is the most efficient and versatile parser and more effective than the standard 
-    URLS = [url.get('href') for url in htmlContent.find_all('a')]
+    htmlContent = BeautifulSoup(resp.raw_response.content, 'lxml') #lxml is the most efficient and versatile parser and more effective than the standard 
+    #URLS = [url.get('href') for url in htmlContent.find_all('a')]
 
-    #actual tokenizing starts here; 
+    # line below should be filtering out all links that start with a "#" because they are already part of the webpage while transforming relative -> absolute URLs
+
+    URLS = {urljoin(resp.url, link.attrs['href']) for link in htmlContent.find_all('a') if 'href' in link.attrs and link.attrs['href'].startswith('/') and urljoin(resp.url, link.attrs['href']).startswith('http')}
+
+    # ===TOKENIZING STARTS HERE===
     
-    # # Filter punctuation using regex with the exception of ' and - 
-    # text = re.sub(r'[^\w\'-]+', ' ', htmlContent.get_text())
+    # Filter punctuation using regex with the exception of ' and - 
+    text = re.sub(r'[^\w\'-]+', ' ', htmlContent.get_text())
     
-    # # Split words joined by "-"
-    # text = text.replace("-", " ")
+    # Split words joined by "-"
+    text = text.replace("-", " ")
     
-    # # Lowercase all words so we can accurately count all occurences of a word
-    # text = text.lower()
+    # Lowercase all words so we can accurately count all occurences of a word
+    text = text.lower()
     
     # Split text into words while filtering out words that are considered English stop words
-    words = re.findall(r"[\x30-\x39\x41-\x5A\x61-\x7A]+", htmlContent.get_text().lower())
+    words = [word for word in text.split() if word not in stopWords]
     
-    countDict = defaultdict(int)
+    tempDict = defaultdict(int)
     # Count word occurrences
     for word in words:
         freqDict[word] += 1
-        countDict[word] += 1
+        tempDict[word] += 1
+
+    # === TOKENIZING ENDS HERE ===
     
     hashFunction(countDict)
     
-    #REMEMBER: do something with the frequencies dict to count the overall frequencies from ALL the webpages
-    
-    #returns both the list of URLS and dictionary of frequencies as a tuple for later access
-    #temporary return values (not sure what to return)
-    #return URLS, frequencies
     return URLS
 
 def hashFunction(count_dict): 
