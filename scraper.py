@@ -72,7 +72,8 @@ def extract_next_links(url, resp, freqDict):
             
             
             htmlContent = BeautifulSoup(resp.raw_response.content, 'lxml') 
-            tokenizeURLS = [url.get('href') for url in htmlContent.find_all('a')]
+            #tokenizeURLS = [url.get('href') for url in htmlContent.find_all('a')]
+            tokenizeURLS = tokenize(resp, freqDict)
             
             # ===WRITE CODE TO REMOVE ALL DUPLICATES HERE -> waiting on curtis fingerprints===
             
