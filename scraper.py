@@ -23,77 +23,17 @@ def extract_next_links(url, resp, freqDict):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-    
-    listToReturn = list()
-    
+
+    #//TODO IF WE HAVE TIME LMAOOOO
     #fingerprints = set() commented these data structures out because didn't use them yet
-    #checksums = set()
-    
+    #checksums = set()  
     #duplicates = set()
 
-    
-    print(f'url: {url}')
-    # ===NOT SURE IF THIS CHUNK OPTIMIZES OR IS NECESSARY===
-    domain = urlsplit(url).netloc.split(".")[-4:]
-    domain = ".".join(domain)
-        
-    # return false for URLS that are not of the following domains
-    if domain not in set(["ics.uci.edu", "cs.uci.edu", "informatics.uci.edu", "stats.uci.edu"]):
-        return listToReturn
-    # ===DOMAIN CHECK ENDS====
-    
-    elif resp.status != 200 or resp.raw_response == None:
-        return listToReturn
-    elif resp.raw_response: 
-        if (resp.raw_response.content and resp.raw_response.url):
-            robots_url = f"{domain}/robots.txt"
-            print(f"robots url: {robots_url}")
-            #figure out if robot.txt tells us if webpage is crawlable, change flag to true if it is 
-
-              # ===CHECK IF URL GIVEN IS CRAWLABLE HERE===
-            try: 
-                roboParser = rbp.RobotFileParser()
-                roboParser.set_url(robots_url)
-                roboParser.read() # makes a request to to the url and is the reason we have try/except
-                
-            except urllib.error.HTTPError as e: #if read() causes an error -> do something if 404 and do something if not 404
-                if e.code == 404: # means it is crawlable since a robots.txt file doesn't exist
-                    pass
-                else:
-                    return list() # returning an empty list if any other error other than 404 was raised
-             
-            if roboParser.can_fetch('*', url) == False: # can fetch doesn't raise any exceptions
-                return listToReturn # since can fetch == isCrawlable(), we return an empty list when can_fetch() is false
-            
-            # ===CRAWLABLE CHECK ENDS HERE===
-            
-            # if crawlable -> then we find duplicates (near and exact, add them to duplicates set and visited list
-            #if yes, make sure to remove all the disallowed urls from listToReturn and finalize it 
-            
-            
-            htmlContent = BeautifulSoup(resp.raw_response.content, 'lxml') 
-            tokenizeURLS = [url.get('href') for url in htmlContent.find_all('a')]
-            
-            # ===WRITE CODE TO REMOVE ALL DUPLICATES HERE -> waiting on curtis fingerprints===
-            
-            # ===END DUPLICATE REMOVAL===
-            
-            # ===WRITE CODE TO REMOVE ALL DISALLOWED PATHS FROM ROBOTS.TXT===
-            disallowed_paths = [rule[1] for rule in roboParser.default_entry.rulelines if rule[0] == 'Disallow']
-            
-            # removes all links with disallowed paths in them
-            for url in tokenizeURLS:
-                if any(path in url for path in disallowed_paths):
-                    tokenizeURLS.remove(url) 
-                else:
-                    pass
-            
-            listToReturn = tokenizeURLS
-            # ===REMOVE DISALLOWED ENDS HERE
-    else:
-        print(resp.error)
-        
+    listToReturn = []
+    if resp.status in (200,201,202):
+        listToReturn = tokenize(resp.raw_response.content, freqDict)
     return listToReturn
+
 
 def is_valid(url):
     # Decide whether to crawl this url or not. 
@@ -102,7 +42,6 @@ def is_valid(url):
     
     #check if the URL 
     #a URL is allowed to be crawled if its robot.txt file +
-    print(f'url: {url}')
     try:
         parsed = urlparse(url)
         
@@ -112,13 +51,12 @@ def is_valid(url):
         #attempting to check the domain of the parsed url WITHOUT the subdomain included
         domain = urlsplit(url).netloc.split(".")[-3:]
         domain = ".".join(domain)
+        print(f'url: {url}')
 
         #return false for URLS that are not of the following domains
-        if domain not in set(["ics.uci.edu", "cs.uci.edu", "informatics.uci.edu", "stats.uci.edu"]):
-            print("False")
+        if domain not in set(["ics.uci.edu", "cs.uci.edu", "informatics.uci.edu", "stat.uci.edu"]):
             return False
         if parsed.scheme not in set(["http", "https"]):
-            print("False")
             return False
         
         flag = not re.match(
@@ -130,11 +68,28 @@ def is_valid(url):
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
-        return flag
+        if (flag == False):
+            return False
+    
+        robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
+        print(f"robots url: {robots_url}")
+
+        #figure out if robot.txt tells us if webpage is crawlable, change flag to true if it is 
+        roboParser = rbp.RobotFileParser()
+        roboParser.set_url(robots_url)
+        roboParser.read() # makes a request to to the url and is the reason we have try/except
+
+        if roboParser.can_fetch('*', url) == False: # can fetch doesn't raise any exceptions
+            return False # since can fetch == isCrawlable(), we return an empty list when can_fetch() is false
 
     except TypeError:
         print ("TypeError for ", parsed)
         raise
+    except urllib.error.HTTPError as e: #if read() causes an error -> do something if 404 and do something if not 404
+        if e.code != 404:
+            return False
+    
+    return True
 
 """
 takes in response.raw_response.content 
@@ -196,7 +151,7 @@ def tokenize(rrc, freqDict): #rrc stands for response.raw_response.content
         freqDict[word] += 1
         countDict[word] += 1
     
-    hashFunction(countDict)
+    hashOfURL = hashFunction(countDict)
     
     #REMEMBER: do something with the frequencies dict to count the overall frequencies from ALL the webpages
     
@@ -205,7 +160,7 @@ def tokenize(rrc, freqDict): #rrc stands for response.raw_response.content
     #return URLS, frequencies
     return URLS
 
-def hashFunction(count_dict): 
+def hashFunction(count_dict):
     #should return a hash, I can try and implement this into the code later, i'm getting finalhash = 3646333053, testfinal = -9529110459, 
     #pretty sure testfinal is wrong, donm't know why though THEY SHOULD BOTH BE RETURNING THE SAME THING AGHHHHHH
 
@@ -213,27 +168,20 @@ def hashFunction(count_dict):
     # stringtest2 = "why are animals so fucking stubborn sometimes?"
 
     # tokenlist = re.findall(r"[\x30-\x39\x41-\x5A\x61-\x7A]+", stringtest)
-    count_dict = defaultdict(int)
-
+    finalhash = 0
     num_bits = 32
     hash_list = [0] * num_bits
-
-    for i in tokenlist:
-        count_dict[i] += 1
     
-    for i in tokenlist:
-        number = (int.from_bytes(hashlib.sha256(i.encode()).digest()[:4], 'little')) # 32-bit int
+    for key in count_dict:
+        word_hash = (int.from_bytes(hashlib.sha256(key.encode()).digest()[:4], 'little')) # 32-bit int
         
-        bits = [(number >> bit) & 1 for bit in range(num_bits - 1, -1, -1)]
-        print(f'i: {i:<10} bits: {bits} num: {number}')
+        bits = [(word_hash >> bit) & 1 for bit in range(num_bits - 1, -1, -1)]
+
+        print(f'key: {key:<10} bits: {bits} num: {word_hash}')
         for index, bit in enumerate(bits):
-            hash_list[index] += count_dict[i] if bit == 1 else (-1 * count_dict[i])
+            hash_list[index] += count_dict[key] if bit == 1 else (-1 * count_dict[key])
     
 
-    finalhash = 0
     for b in hash_list:
         finalhash = (finalhash << 1) + b
-
-
-if __name__ == "__main__": #IF YOU WANT TO SEE THE RESULTS OF HASH FUNCTION JUST TYPE "python scraper.py" INTO TERMINAL IT SHOULD WORK
-    hashFunction()
+    return finalhash

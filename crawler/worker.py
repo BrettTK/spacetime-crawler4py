@@ -23,6 +23,7 @@ class Worker(Thread):
     def run(self):
         while True:
             tbd_url = self.frontier.get_tbd_url()
+            print(f'tbd_url: {tbd_url}')
             if not tbd_url:
                 self.logger.info("Frontier is empty. Stopping Crawler.")
                 break
