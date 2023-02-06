@@ -1,7 +1,7 @@
 import re
 from urllib.parse import urlparse, urlsplit, urldefrag
 import urllib.error
-import urllib.robotparser
+import urllib.robotparser as rbp
 from bs4 import BeautifulSoup
 from collections import defaultdict
 import hashlib
@@ -32,9 +32,9 @@ def extract_next_links(url, resp, freqDict):
     #duplicates = set()
 
     
-    
+    print(f'url: {url}')
     # ===NOT SURE IF THIS CHUNK OPTIMIZES OR IS NECESSARY===
-    domain = urlsplit(url).netloc.split(".")[-3:]
+    domain = urlsplit(url).netloc.split(".")[-4:]
     domain = ".".join(domain)
         
     # return false for URLS that are not of the following domains
@@ -46,12 +46,13 @@ def extract_next_links(url, resp, freqDict):
         return listToReturn
     elif resp.raw_response: 
         if (resp.raw_response.content and resp.raw_response.url):
-            robots_url = f"{url.rstrip('/')}/robots.txt"
+            robots_url = f"{domain}/robots.txt"
+            print(f"robots url: {robots_url}")
             #figure out if robot.txt tells us if webpage is crawlable, change flag to true if it is 
 
               # ===CHECK IF URL GIVEN IS CRAWLABLE HERE===
             try: 
-                roboParser = urllib.robotparser.RobotFileParser()
+                roboParser = rbp.RobotFileParser()
                 roboParser.set_url(robots_url)
                 roboParser.read() # makes a request to to the url and is the reason we have try/except
                 
@@ -78,7 +79,7 @@ def extract_next_links(url, resp, freqDict):
             # ===END DUPLICATE REMOVAL===
             
             # ===WRITE CODE TO REMOVE ALL DISALLOWED PATHS FROM ROBOTS.TXT===
-            disallowed_paths = set(urllib.robotparser.get_paths("*")) # assuming that this line works for now
+            disallowed_paths = [rule[1] for rule in roboParser.default_entry.rulelines if rule[0] == 'Disallow']
             
             # removes all links with disallowed paths in them
             for url in tokenizeURLS:
@@ -101,10 +102,9 @@ def is_valid(url):
     
     #check if the URL 
     #a URL is allowed to be crawled if its robot.txt file +
+    print(f'url: {url}')
     try:
         parsed = urlparse(url)
-        print("new url")
-        print(parsed)
         
         if (not parsed.netloc):
             return False
@@ -112,9 +112,6 @@ def is_valid(url):
         #attempting to check the domain of the parsed url WITHOUT the subdomain included
         domain = urlsplit(url).netloc.split(".")[-3:]
         domain = ".".join(domain)
-        
-        print("domain")
-        print(domain)
 
         #return false for URLS that are not of the following domains
         if domain not in set(["ics.uci.edu", "cs.uci.edu", "informatics.uci.edu", "stats.uci.edu"]):
@@ -181,25 +178,25 @@ def tokenize(rrc, freqDict): #rrc stands for response.raw_response.content
 
     #actual tokenizing starts here; 
     
-    # Filter punctuation using regex with the exception of ' and - 
-    text = re.sub(r'[^\w\'-]+', ' ', htmlContent.get_text())
+    # # Filter punctuation using regex with the exception of ' and - 
+    # text = re.sub(r'[^\w\'-]+', ' ', htmlContent.get_text())
     
-    # Split words joined by "-"
-    text = text.replace("-", " ")
+    # # Split words joined by "-"
+    # text = text.replace("-", " ")
     
-    # Lowercase all words so we can accurately count all occurences of a word
-    text = text.lower()
+    # # Lowercase all words so we can accurately count all occurences of a word
+    # text = text.lower()
     
     # Split text into words while filtering out words that are considered English stop words
-    words = [word for word in text.split() if word not in stopWords]
+    words = re.findall(r"[\x30-\x39\x41-\x5A\x61-\x7A]+", htmlContent.get_text().lower())
     
-    tempDict = defaultdict(int)
+    countDict = defaultdict(int)
     # Count word occurrences
     for word in words:
         freqDict[word] += 1
-        tempDict[word] += 1
+        countDict[word] += 1
     
-
+    hashFunction(countDict)
     
     #REMEMBER: do something with the frequencies dict to count the overall frequencies from ALL the webpages
     
@@ -208,14 +205,14 @@ def tokenize(rrc, freqDict): #rrc stands for response.raw_response.content
     #return URLS, frequencies
     return URLS
 
-def hashFunction(): 
+def hashFunction(count_dict): 
     #should return a hash, I can try and implement this into the code later, i'm getting finalhash = 3646333053, testfinal = -9529110459, 
     #pretty sure testfinal is wrong, donm't know why though THEY SHOULD BOTH BE RETURNING THE SAME THING AGHHHHHH
 
-    stringtest = "This is an example sentence."
-    stringtest2 = "why are animals so fucking stubborn sometimes?"
+    # stringtest = "This is an example sentence."
+    # stringtest2 = "why are animals so fucking stubborn sometimes?"
 
-    tokenlist = re.findall(r"[\x30-\x39\x41-\x5A\x61-\x7A]+", stringtest)
+    # tokenlist = re.findall(r"[\x30-\x39\x41-\x5A\x61-\x7A]+", stringtest)
     count_dict = defaultdict(int)
 
     num_bits = 32
@@ -236,11 +233,7 @@ def hashFunction():
     finalhash = 0
     for b in hash_list:
         finalhash = (finalhash << 1) + b
-    print(finalhash)
 
-    testfinal = sum([b<<i for i, b in enumerate(hash_list)])
-
-    print(testfinal)
 
 if __name__ == "__main__": #IF YOU WANT TO SEE THE RESULTS OF HASH FUNCTION JUST TYPE "python scraper.py" INTO TERMINAL IT SHOULD WORK
     hashFunction()
