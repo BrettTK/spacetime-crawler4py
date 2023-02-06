@@ -1,5 +1,7 @@
 import re
-from urllib.parse import urlparse, urlsplit
+from urllib.parse import urlparse, urlsplit, urldefrag
+import urllib.error
+import urllib.robotparser
 from bs4 import BeautifulSoup
 from collections import defaultdict
 import hashlib
@@ -49,7 +51,7 @@ def extract_next_links(url, resp, freqDict):
 
               # ===CHECK IF URL GIVEN IS CRAWLABLE HERE===
             try: 
-                roboParser = rbp.RoboFileParser()
+                roboParser = urllib.robotparser.RobotFileParser()
                 roboParser.set_url(robots_url)
                 roboParser.read() # makes a request to to the url and is the reason we have try/except
                 
@@ -68,7 +70,7 @@ def extract_next_links(url, resp, freqDict):
             #if yes, make sure to remove all the disallowed urls from listToReturn and finalize it 
             
             
-            htmlContent = BeautifulSoup(response.raw_response.content, 'lxml') 
+            htmlContent = BeautifulSoup(resp.raw_response.content, 'lxml') 
             tokenizeURLS = [url.get('href') for url in htmlContent.find_all('a')]
             
             # ===WRITE CODE TO REMOVE ALL DUPLICATES HERE -> waiting on curtis fingerprints===
@@ -76,7 +78,7 @@ def extract_next_links(url, resp, freqDict):
             # ===END DUPLICATE REMOVAL===
             
             # ===WRITE CODE TO REMOVE ALL DISALLOWED PATHS FROM ROBOTS.TXT===
-            disallowed_paths = set(rp.get_paths("*")) # assuming that this line works for now
+            disallowed_paths = set(urllib.robotparser.get_paths("*")) # assuming that this line works for now
             
             # removes all links with disallowed paths in them
             for url in tokenizeURLS:
