@@ -14,7 +14,8 @@ class Worker(Thread):
         self.config = config
         self.frontier = frontier
         self.freqDict = defaultdict(int)
-        self.visitedSites = []
+        self.visitedSites = set()
+        self.finalCount
         # basic check for requests in scraper
         assert {getsource(scraper).find(req) for req in {"from requests import", "import requests"}} == {-1}, "Do not use requests in scraper.py"
         assert {getsource(scraper).find(req) for req in {"from urllib.request import", "import urllib.request"}} == {-1}, "Do not use urllib.request in scraper.py"
@@ -30,13 +31,18 @@ class Worker(Thread):
             self.logger.info(
                 f"Downloaded {tbd_url}, status <{resp.status}>, "
                 f"using cache {self.config.cache_server}.")
-            scraped_urls = scraper.scraper(tbd_url, resp, self.freqDict)
-            for scraped_url in scraped_urls:
-                self.frontier.add_url(scraped_url)
-                f = open(f"{scraped_url[0:1].upper()}list.txt", "a")
-                f.write(f"{scraped_url}\n")
-                f.close()
-            self.frontier.mark_url_complete(tbd_url)
-            time.sleep(self.config.time_delay)
-        f2 = open("link count.txt", "w")
-        f2.write(len(scraped_urls))
+            if tbd_url in self.visitedSites:
+                pass
+            else:
+                scraped_urls = scraper.scraper(tbd_url, resp, self.freqDict)
+                for scraped_url in scraped_urls:
+                    self.frontier.add_url(scraped_url)
+                    self.visitedSites.add(scraped_url)
+                    #f = open(f"{scraped_url[0:1].upper()}list.txt", "a")
+                    #f.write(f"{scraped_url}\n")
+                    #f.close()
+                self.frontier.mark_url_complete(tbd_url)
+                time.sleep(self.config.time_delay)
+        self.finalCount = len(scraped_urls)
+        #f2 = open("link count.txt", "w")
+        #f2.write(len(scraped_urls))
