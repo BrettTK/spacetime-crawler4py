@@ -9,9 +9,9 @@ import hashlib
 #curtis test git push
 #ryan testing git push
 
-def scraper(url, resp, wordFrequency, stopWords):
+def scraper(url, resp, wordFrequency, stopWords, visitedHashes):
     links, (myurl, countHighest) = extract_next_links(url, resp, wordFrequency, stopWords)
-    validLinks = [link for link in links if is_valid(link, resp, stopWords)]
+    validLinks = [link for link in links if is_valid(link, resp, stopWords, visitedHashes)]
     # for index, link in enumerate(validLinks):
     #     print(f'{index}: {link}')
     return validLinks, (myurl, countHighest)
@@ -40,7 +40,7 @@ def extract_next_links(url, resp, freqDict, stopWords):
     return listToReturn, (the_url, countHighest)
 
 
-def is_valid(url, resp, stopWords):
+def is_valid(url, resp, stopWords, visitedHashes):
     # Decide whether to crawl this url or not.
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
@@ -98,26 +98,27 @@ def is_valid(url, resp, stopWords):
         if roboParser.can_fetch('*', url) == False: # can fetch doesn't raise any exceptions
             return False # since can fetch == isCrawlable(), we return an empty list when can_fetch() is false
 
-        htmlContent = BeautifulSoup(resp.raw_response.content, 'lxml')
-        tokens = re.findall(r"[\x30-\x39\x41-\x5A\x61-\x7A]+", htmlContent.get_text())
-
-        # Split text into words while filtering out words that are considered English stop words
-        words = [word for word in tokens if word not in stopWords]
-
-        # Count word occurrences
-        countDict = defaultdict(int)
-        for word in words:
-            countDict[word] += 1
-        
-        hashOfURL = hashFunction(countDict)
-
     except TypeError:
         print ("TypeError for ", parsed)
         raise
     except urllib.error.HTTPError as e: #if read() causes an error -> do something if 404 and do something if not 404
         if e.code != 404:
             return False
+
+    htmlContent = BeautifulSoup(resp.raw_response.content, 'lxml')
+    tokens = re.findall(r"[\x30-\x39\x41-\x5A\x61-\x7A]+", htmlContent.get_text())
+
+    words = [word for word in tokens if word not in stopWords]
+    countDict = defaultdict(int)
+    for word in words:
+        countDict[word] += 1
+        
+    contentHash = hashFunction(countDict)
+
+    if contentHash in visitedHashes:
+        return False
     
+    visitedHashes.add(contentHash)
     return True
 
 """
@@ -154,18 +155,21 @@ def tokenize(resp, freqDict, stopWords): # takes in a response object which is u
     # Count word occurrences
     for word in words:
         freqDict[word] += 1
-    #REMEMBER: do something with the frequencies dict to count the overall frequencies from ALL the webpages
     
     #returns the list of URLS
     return URLS, (resp.url, len(words))
 
 def hashFunction(count_dict):
+    ##################################################
+    num_bits = 16 #ONLY NUMBER THAT SHOULD BE CHANGED SHOULD BE NUMBERS DIVISIBLE BY 8
+    ##################################################
+
     finalhash = 0
-    num_bits = 32
+    x = int(num_bits / 8)
     hash_list = [0] * num_bits
     
     for key in count_dict:
-        word_hash = (int.from_bytes(hashlib.sha256(key.encode()).digest()[:4], 'little')) # 32-bit int
+        word_hash = (int.from_bytes(sha256(key.encode()).digest()[:x], 'little')) # 32-bit int
         
         bits = [(word_hash >> bit) & 1 for bit in range(num_bits - 1, -1, -1)]
 
@@ -173,8 +177,8 @@ def hashFunction(count_dict):
         for index, bit in enumerate(bits):
             hash_list[index] += count_dict[key] if bit == 1 else (-1 * count_dict[key])
     
+    for i in range(len(hash_list)):
+        hash_list[i] = 1 if hash_list[i] >= 0 else 0
+        finalhash = (finalhash << 1) | hash_list[i]
 
-    for b in hash_list:
-        finalhash = (finalhash << 1) + b
-    # print(f'finalhash: {finalhash}')
     return finalhash

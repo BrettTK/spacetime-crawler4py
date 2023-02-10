@@ -17,6 +17,7 @@ class Worker(Thread):
         self.highestCount = 0
         self.biggestLink = ""
         self.icsSubDomainDict = defaultdict(set)
+        self.visitedHashes = set()
         self.stopWords = {
     "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", "as", "at",
     "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", "cannot", "could",
@@ -51,7 +52,7 @@ class Worker(Thread):
                 f"using cache {self.config.cache_server}.")
             print("PROCESSING URL")
             print(f'tbd_url: {tbd_url}')
-            scraped_urls, (myurl, countHighest) = scraper.scraper(tbd_url, resp, self.freqDict, self.stopWords)
+            scraped_urls, (myurl, countHighest) = scraper.scraper(tbd_url, resp, self.freqDict, self.stopWords, self.visitedHashes)
             if countHighest > self.highestCount:
                 self.highestCount = countHighest
                 self.biggestLink = myurl
