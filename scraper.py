@@ -9,15 +9,15 @@ import hashlib
 #curtis test git push
 #ryan testing git push
 
-def scraper(url, resp, wordFrequency, visitedHashes, stopWords):
-    links, (myurl, countHighest) = extract_next_links(url, resp, wordFrequency, visitedHashes, stopWords)
-    validLinks = [link for link in links if is_valid(link, resp, visitedHashes, stopWords)]
+def scraper(url, resp, wordFrequency, stopWords):
+    links, (myurl, countHighest) = extract_next_links(url, resp, wordFrequency, stopWords)
+    validLinks = [link for link in links if is_valid(link, resp, stopWords)]
     # for index, link in enumerate(validLinks):
     #     print(f'{index}: {link}')
     return validLinks, (myurl, countHighest)
     
 
-def extract_next_links(url, resp, freqDict, visitedHashes, stopWords):
+def extract_next_links(url, resp, freqDict, stopWords):
     # Implementation required.
     # url: the URL that was used to get the page
     # resp.url: the actual url of the page
@@ -36,27 +36,27 @@ def extract_next_links(url, resp, freqDict, visitedHashes, stopWords):
     listToReturn = []
     countHighest = 0
     if resp.status in (200,201,202):
-        listToReturn, (the_url, countHighest) = tokenize(resp, freqDict, visitedHashes, stopWords)
+        listToReturn, (the_url, countHighest) = tokenize(resp, freqDict, stopWords)
     return listToReturn, (the_url, countHighest)
 
 
-def is_valid(url, resp, visitedHashes, stopWords):
+def is_valid(url, resp, stopWords):
     # Decide whether to crawl this url or not.
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
     
     #check if the URL 
     #a URL is allowed to be crawled if its robot.txt file +
+    
     try:
         parsed = urlparse(url)
-        
         # print(f'url: {url}')
         if (not parsed.netloc):
             return False
 
         #attempting to check the domain of the parsed url WITHOUT the subdomain included
-        domain = urlsplit(url).netloc.split(".")[-3:]
-        domain = ".".join(domain)
+        test_domain = urlsplit(url).netloc.split(".")[-4:]
+        domain = ".".join(test_domain[-3:])
 
         #return false for URLS that are not of the following domains
         if domain not in {"ics.uci.edu", "cs.uci.edu", "informatics.uci.edu", "stat.uci.edu"}:
@@ -64,6 +64,18 @@ def is_valid(url, resp, visitedHashes, stopWords):
         if parsed.scheme not in {"http", "https"}:
             return False
         
+        splitPath = set(url.split("/"))
+
+        #return false for URLS that are not of the following domains
+        if domain not in {"ics.uci.edu", "cs.uci.edu", "informatics.uci.edu", "stat.uci.edu"}:
+            return False
+        if "?" or "&" in url:
+            return False
+        if parsed.scheme not in {"http", "https"}:
+            return False
+        if " " in url:
+            return False
+
         flag = re.match(
             r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
@@ -99,11 +111,6 @@ def is_valid(url, resp, visitedHashes, stopWords):
         
         hashOfURL = hashFunction(countDict)
 
-        # if hashOfURL in visitedHashes:
-        #     visitedHashes.add(hashOfURL)
-        #     return False
-        # visitedHashes.add(hashOfURL)
-
     except TypeError:
         print ("TypeError for ", parsed)
         raise
@@ -124,7 +131,7 @@ QUESTION: what to do with the dictionary of frequencies of each word
 
 return a list of the URLS 
 """
-def tokenize(resp, freqDict, visitedHashes, stopWords): # takes in a response object which is used to generate a BeautifulSoup() object and then also accessed for resp.url to generate URLs list
+def tokenize(resp, freqDict, stopWords): # takes in a response object which is used to generate a BeautifulSoup() object and then also accessed for resp.url to generate URLs list
     
     #instantiate a defaultdict to hold the frequencies of all the words found
     #frequencies = defaultdict(int)

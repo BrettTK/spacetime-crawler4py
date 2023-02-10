@@ -14,9 +14,9 @@ class Worker(Thread):
         self.config = config
         self.frontier = frontier
         self.freqDict = defaultdict(int)
-        self.visitedHashes = set()
         self.highestCount = 0
         self.biggestLink = ""
+        self.icsSubDomainDict = defaultdict(set)
         self.stopWords = {
     "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", "as", "at",
     "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", "cannot", "could",
@@ -44,7 +44,6 @@ class Worker(Thread):
             # print(f'tbd_url: {tbd_url}')
             if not tbd_url:
                 self.logger.info("Frontier is empty. Stopping Crawler.")
-                print(f"visited hashes: {self.visitedHashes}")
                 break
             resp = download(tbd_url, self.config, self.logger)
             self.logger.info(
@@ -52,7 +51,7 @@ class Worker(Thread):
                 f"using cache {self.config.cache_server}.")
             print("PROCESSING URL")
             print(f'tbd_url: {tbd_url}')
-            scraped_urls, (myurl, countHighest) = scraper.scraper(tbd_url, resp, self.freqDict, self.visitedHashes, self.stopWords)
+            scraped_urls, (myurl, countHighest) = scraper.scraper(tbd_url, resp, self.freqDict, self.stopWords)
             if countHighest > self.highestCount:
                 self.highestCount = countHighest
                 self.biggestLink = myurl
@@ -61,12 +60,11 @@ class Worker(Thread):
             self.frontier.mark_url_complete(tbd_url)
             time.sleep(self.config.time_delay)
         
-        freqDictSorted = sorted(self.freqDict.items(), key=lambda x: x[1], reverse=True)
+        freqDictSorted = sorted(self.freqDict.items(), key=lambda x: x[1], reverse=True)[:60]
 
-        top50 = freqDictSorted[:50]
-        print(top50)
+        print(freqDictSorted)
         with open('top50words.txt', 'w') as file:
-            file.write(json.dumps(top50))
+            file.write(json.dumps(freqDictSorted))
         
         numUniquePages = self.frontier.numUnique
         with open('numUniquePages.txt', 'w') as file:
