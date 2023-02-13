@@ -18,6 +18,7 @@ class Worker(Thread):
         self.biggestLink = ""
         self.icsSubDomainDict = defaultdict(set)
         self.visitedHashes = set()
+        self.visitedURLS = set()
         self.stopWords = {
     "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", "as", "at",
     "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", "cannot", "could",
@@ -45,14 +46,20 @@ class Worker(Thread):
             # print(f'tbd_url: {tbd_url}')
             if not tbd_url:
                 self.logger.info("Frontier is empty. Stopping Crawler.")
+                print(f"all visited URLS: {self.visitedURLS}")
                 break
+            
             resp = download(tbd_url, self.config, self.logger)
-            self.logger.info(
-                f"Downloaded {tbd_url}, status <{resp.status}>, "
-                f"using cache {self.config.cache_server}.")
+            # self.logger.info(
+            #     f"Downloaded {tbd_url}, status <{resp.status}>, "
+            #     f"using cache {self.config.cache_server}.")
             print("PROCESSING URL")
-            print(f'tbd_url: {tbd_url}')
-            scraped_urls, (myurl, countHighest) = scraper.scraper(tbd_url, resp, self.freqDict, self.stopWords, self.visitedHashes)
+            print(f'CURRENT URL to be crawled (tbd_url): {tbd_url}')
+            print(f'tbd_LIST: {self.frontier.to_be_downloaded}')
+            print()
+            print(f"all visited URLS: {self.visitedURLS}")
+
+            scraped_urls, (myurl, countHighest) = scraper.scraper(tbd_url, resp, self.freqDict, self.stopWords, self.visitedHashes, self.visitedURLS)
             if countHighest > self.highestCount:
                 self.highestCount = countHighest
                 self.biggestLink = myurl

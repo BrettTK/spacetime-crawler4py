@@ -41,7 +41,7 @@ class Frontier(object):
         total_count = len(self.save)
         tbd_count = 0
         for url, completed in self.save.values():
-            if not completed and is_valid(url):
+            if not completed:
                 self.to_be_downloaded.append(url)
                 tbd_count += 1
         self.logger.info(
@@ -57,9 +57,7 @@ class Frontier(object):
     def add_url(self, url):
         url = normalize(url)
         urlhash = get_urlhash(url)
-        if urlhash not in self.save: #this line does not work figure it out soon
-            print(f'added website: {url}')
-            self.numUnique += 1
+        if urlhash not in self.save:
             self.save[urlhash] = (url, False)
             self.save.sync()
             self.to_be_downloaded.append(url)
