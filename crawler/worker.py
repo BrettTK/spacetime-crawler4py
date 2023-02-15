@@ -18,6 +18,7 @@ class Worker(Thread):
         self.biggestLink = ""
         self.icsSubDomainDict = defaultdict(set)
         self.visitedHashes = set()
+        self.visitedFingerprints = set()
         self.visitedURLS = set()
         self.stopWords = {
     "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", "as", "at",
@@ -53,13 +54,14 @@ class Worker(Thread):
             # self.logger.info(
             #     f"Downloaded {tbd_url}, status <{resp.status}>, "
             #     f"using cache {self.config.cache_server}.")
-            print("PROCESSING URL")
-            print(f'CURRENT URL to be crawled (tbd_url): {tbd_url}')
-            print(f'tbd_LIST: {self.frontier.to_be_downloaded}')
-            print()
-            print(f"all visited URLS: {self.visitedURLS}")
+            print("-----------------------------------------------")
+            print(f'CURRENT URL POPPED FROM TBD_URL: {tbd_url}')
+            print("-----------------------------------------------")
+            # print(f'TBD_LIST: {self.frontier.to_be_downloaded}')
+            # print()
+            # print(f"ALL VISITED URLS: {self.visitedURLS}")
 
-            scraped_urls, (myurl, countHighest) = scraper.scraper(tbd_url, resp, self.freqDict, self.stopWords, self.visitedHashes, self.visitedURLS)
+            scraped_urls, (myurl, countHighest) = scraper.scraper(tbd_url, resp, self.freqDict, self.stopWords, self.visitedHashes, self.visitedURLS, self.visitedFingerprints)
             if countHighest > self.highestCount:
                 self.highestCount = countHighest
                 self.biggestLink = myurl

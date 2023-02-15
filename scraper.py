@@ -1,4 +1,5 @@
 import re
+import os
 from urllib.parse import urlparse, urlsplit, urldefrag, urljoin 
 import urllib.error
 import urllib.robotparser as rbp
@@ -9,20 +10,20 @@ import hashlib
 #curtis test git push
 #ryan testing git push
 
-def scraper(url, resp, wordFrequency, stopWords, visitedHashes, visitedURLS):
+def scraper(url, resp, wordFrequency, stopWords, visitedHashes, visitedURLS, visitedFingerprints):
     links, (myurl, countHighest) = extract_next_links(url, resp, wordFrequency, stopWords)
 
-    print(f'links from XNL: {links}')
-    validLinks = [link for link in links if is_valid(link, resp, stopWords, visitedHashes, visitedURLS)]
+    #print(f'links from XNL: {links}')
+    validLinks = [link for link in links if is_valid(link, resp, stopWords, visitedHashes, visitedURLS, visitedFingerprints, wordFrequency)]
 
     print()
 
-    print(f'valid links: {validLinks}')
+    print(f'VALID LINKS: {validLinks}')
     print()
 
-    print("Printing next links to crawl:")
-    for index, link in enumerate(validLinks):
-        print(f'{index}: {link}')
+    # print("NEXT LINKS TO CRAWL:")
+    # for index, link in enumerate(validLinks):
+    #     print(f'{index}: {link}')
     
     print()
     return validLinks, (myurl, countHighest)
@@ -54,7 +55,7 @@ def extract_next_links(url, resp, freqDict, stopWords):
     return listToReturn, (the_url, countHighest)
 
 
-def is_valid(url, resp, stopWords, visitedHashes, visitedURLS):
+def is_valid(url, resp, stopWords, visitedHashes, visitedURLS, visitedFingerprints, freqDict):
     # Decide whether to crawl this url or not.
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
@@ -78,6 +79,15 @@ def is_valid(url, resp, stopWords, visitedHashes, visitedURLS):
         splitPath = url.split("/")
         lastPart = splitPath[-1]
         
+            #ryan added this (not sure if its right)
+        if url in visitedURLS:
+            #print(f"url already visited: {url}")
+            return False
+        
+        hash = get_fingerprint(resp)
+        if hash in visitedHashes:
+            return False
+
         if resp.status not in (200,201,202):
             return False
 
@@ -86,36 +96,49 @@ def is_valid(url, resp, stopWords, visitedHashes, visitedURLS):
         #     print(f"invalid DOMAIN: {domain}")
         #     return False
         if not re.match(r"^(.*\.ics.uci.edu/.*|.*\.cs.uci.edu/.*|.*\.informatics.uci.edu/.*|.*\.stat.uci.edu/.*)$", url):
-            print(f"invalid DOMAIN: {url}")
+            #print(f"invalid DOMAIN: {url}")
+            return False
+        if 'events' in splitPath and 'wics' in parsed.netloc:
+            #print(f"annoying wics event calendar {url}")
+            return False
+        if 'page' in splitPath:
             return False
         if parsed.scheme not in {"http", "https"}:
-            print(f"invalid SCHEME: {url}")
+            #print(f"invalid SCHEME: {url}")
             return False
         if "wp-" in parsed.path: # Ryan added this because some jpg files are still being validated despite being put in the re.match() below
-            print(f"contains wp- : {url}")
+            #print(f"contains wp- : {url}")
             return False
 
         if re.match(r"\d\d\d\d-\d\d-\d\d" + r"|\d\d\d\d-\d\d", lastPart): # no useful information on these pagese
             return False
 
-        # if "?" or "&" in url:
-        #     print(f"contains a query / query params: {url}") # added by Ryan because ? or & means a query param which can lead to action=login
-        #     return False
-   
-        # if " " in url: # added by Ryan because URL encoding doesn't allow whitespace
-        #     return False
+        if "?" in url:
+            #print(f"contains a query / query params: {url}") # added by Ryan because ? or & means a query param which can lead to action=login
+            return False
 
-        # flag = re.match(
-        #     r".*\.(css|js|bmp|gif|jpe?g|ico"
-        #     + r"|png|tiff?|mid|mp2|mp3|mp4"
-        #     + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
-        #     + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
-        #     + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
-        #     + r"|epub|dll|cnf|tgz|sha1"
-        #     + r"|thmx|mso|arff|rtf|jar|csv"
-        #     + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
+        # robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
 
-        flag = re.match(
+        # #figure out if robot.txt tells us if webpage is crawlable, change flag to true if it is 
+        
+        # roboParser = rbp.RobotFileParser()
+        # roboParser.set_url(robots_url)
+        # roboParser.read() # makes a request to to the url and is the reason we have try/except
+
+        # if roboParser.can_fetch('*', url) == False: # can fetch doesn't raise any exceptions
+        #     #print(f"unfetchable from robots.txt: {roboParser.can_fetch('*', url)}")
+        #     return False # since can fetch == isCrawlable(), we return an empty list when can_fetch() is false
+     
+
+    except TypeError:
+        print ("TypeError for ", parsed)
+        raise
+    except urllib.error.HTTPError as e: #if read() causes an error -> do something if 404 and do something if not 404
+        if e.code != 404:
+            #print(f"invalid ERROR CODE: {e.code}")
+            return False
+    
+    flag = re.match(
             r".*\.(css|js|bmp|gif|jpe?g|jpg|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
@@ -124,48 +147,24 @@ def is_valid(url, resp, stopWords, visitedHashes, visitedURLS):
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|mpg|sav|jpg|jpeg|midi|qt|txt|ppsx|pps|ear|war|img|apk" 
-            + r"|bib|java|xml|htm|php|bam|sam|odc"
+            + r"|bib|java|xml|htm|php|bam|sam|odc" 
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
 
-        if (flag == True):
-            print(f"invalid FILE TYPE: {parsed.path.lower()}")
-            return False
-    
-        robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
-
-        #figure out if robot.txt tells us if webpage is crawlable, change flag to true if it is 
-        
-        roboParser = rbp.RobotFileParser()
-        roboParser.set_url(robots_url)
-        roboParser.read() # makes a request to to the url and is the reason we have try/except
-
-        if roboParser.can_fetch('*', url) == False: # can fetch doesn't raise any exceptions
-            print(f"unfetchable from robots.txt: {roboParser.can_fetch('*', url)}")
-            return False # since can fetch == isCrawlable(), we return an empty list when can_fetch() is false
-     
-
-    except TypeError:
-        print ("TypeError for ", parsed)
-        raise
-    except urllib.error.HTTPError as e: #if read() causes an error -> do something if 404 and do something if not 404
-        if e.code != 404:
-            print(f"invalid ERROR CODE: {e.code}")
-            return False
+    if (flag):
+        #print(f"invalid FILE TYPE: {parsed.path.lower()}")
+        print(f"IGNORED A BAD FILE TYPE: {url}")
+        return False
 
     htmlContent = BeautifulSoup(resp.raw_response.content, 'lxml')
     tokens = re.findall(r"[\x30-\x39\x41-\x5A\x61-\x7A]+", htmlContent.get_text())
 
     words = [word for word in tokens if word not in stopWords]
-    countDict = defaultdict(int)
+    #countDict = defaultdict(int)
     for word in words:
-        countDict[word] += 1
-    
-    #ryan added this (not sure if its right)
-    if url in visitedURLS:
-        print(f"url already visited: {url}")
-        return False
+        freqDict[word] += 1
     
     visitedURLS.add(url)
+    visitedFingerprints.add(hash)
     ###########################################
 
     # contentHash = hashFunction(countDict)
@@ -176,6 +175,17 @@ def is_valid(url, resp, stopWords, visitedHashes, visitedURLS):
     
     # visitedHashes.add(contentHash)
 
+    # return not re.match(
+    #         r".*\.(css|js|bmp|gif|jpe?g|jpg|ico"
+    #         + r"|png|tiff?|mid|mp2|mp3|mp4"
+    #         + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
+    #         + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
+    #         + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
+    #         + r"|epub|dll|cnf|tgz|sha1"
+    #         + r"|thmx|mso|arff|rtf|jar|csv"
+    #         + r"|mpg|sav|jpg|jpeg|midi|qt|txt|ppsx|pps|ear|war|img|apk" 
+    #         + r"|bib|java|xml|htm|php|bam|sam|odc" 
+    #         + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower())
     return True
 
 """
@@ -239,3 +249,8 @@ def hashFunction(count_dict):
         finalhash = (finalhash << 1) | hash_list[i]
 
     return finalhash
+
+def get_fingerprint(resp):
+    content = resp.raw_response.content
+    fingerprint = hashlib.sha256(content).hexdigest()
+    return fingerprint
